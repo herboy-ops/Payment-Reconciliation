@@ -1,19 +1,22 @@
 import os
+import logging
 import time
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib
-from flask import send_file, abort
-from flask import send_from_directory, abort
-import logging
 from flask import Flask, request, render_template, redirect, url_for, send_from_directory, session
 
 matplotlib.use('Agg')
 
-# Setup logging
+# Create logs folder if not exists
+if not os.path.exists('logs'):
+    os.makedirs('logs')
+
+# Now configure logging safely
 logging.basicConfig(filename='logs/app.log', level=logging.INFO)
 
+# Flask app code
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
 
@@ -22,7 +25,6 @@ app.config['RESULT_FOLDER'] = 'static/results/'
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['RESULT_FOLDER'], exist_ok=True)
-os.makedirs('logs', exist_ok=True)
 
 ALLOWED_EXTENSIONS = {'xlsx', 'xls', 'csv', 'txt'}
 
@@ -220,7 +222,7 @@ def download_file(filename):
         return send_from_directory(app.config['RESULT_FOLDER'], filename, as_attachment=True)
     else:
         return f"Error: {filename} does not exist."
-    
+
 @app.route('/download-sample/<filename>')
 def download_sample(filename):
     try:
@@ -235,5 +237,8 @@ def download_sample(filename):
         return f"Error: {str(e)}", 500
 
 
-if __name__ == "__main__":
-    app.run(debug=True)
+def new_func(__name__, app):
+    if __name__ == "__main__":
+        app.run(debug=True)
+
+new_func(__name__, app)
