@@ -9,19 +9,24 @@ from flask import Flask, request, render_template, redirect, url_for, send_from_
 
 matplotlib.use('Agg')
 
-# Create logs folder if not exists
-if not os.path.exists('logs'):
-    os.makedirs('logs')
+# Setup safe base path and logging folder
+base_dir = os.path.abspath(os.path.dirname(__file__))
+logs_dir = os.path.join(base_dir, 'logs')
+os.makedirs(logs_dir, exist_ok=True)
 
-# Now configure logging safely
-logging.basicConfig(filename='logs/app.log', level=logging.INFO)
+# Configure logging
+logging.basicConfig(
+    filename=os.path.join(logs_dir, 'app.log'),
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 
-# Flask app code
+# Flask app setup
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
 
-app.config['UPLOAD_FOLDER'] = 'uploads/'
-app.config['RESULT_FOLDER'] = 'static/results/'
+app.config['UPLOAD_FOLDER'] = os.path.join(base_dir, 'uploads/')
+app.config['RESULT_FOLDER'] = os.path.join(base_dir, 'static/results/')
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['RESULT_FOLDER'], exist_ok=True)
@@ -146,9 +151,7 @@ def process_files(file1_path, file2_path, payment_type):
                 'TP <> CIS (Mismatch from TP)': unmatched_count_file2
             }
 
-            # Detect mode columns
             possible_mode_columns = ['payment mode', 'mode of payment', 'payment product code', 'mode']
-
             mode_column_cis = next((col for col in non_matching_data_df1.columns if col.strip().lower() in possible_mode_columns), None)
             mode_column_tp = next((col for col in non_matching_data_df2.columns if col.strip().lower() in possible_mode_columns), None)
 
@@ -164,17 +167,14 @@ def process_files(file1_path, file2_path, payment_type):
             else:
                 mode_wise_unmatched_tp = pd.DataFrame(columns=['Payment Mode', ' Count'])
 
-            # Combine both CIS and TP mode-wise unmatched data
             mode_wise_unmatched_combined = pd.concat([mode_wise_unmatched_cis, mode_wise_unmatched_tp], axis=0, ignore_index=True)
 
-            # Mode-wise pivot
             combined_df = pd.concat([df1, df2], ignore_index=True)
             combined_df.columns = combined_df.columns.str.strip()
             combined_df.rename(columns={"payment product code": "Mode", "mode of payment": "Mode", "payment mode": "Mode"}, inplace=True)
             mode_wise_pivot = pd.pivot_table(combined_df, index='Mode', aggfunc='size').reset_index()
             mode_wise_pivot.columns = ['Mode', 'Count']
 
-            # Chart generation
             chart_file = 'summary_chart.png'
             chart_path = os.path.join(app.config['RESULT_FOLDER'], chart_file)
             categories = ['Total CIS Records', 'Total TP Records', 'CIS = TP (Matched)', 'CIS <> TP (Mismatch from CIS)', 'TP <> CIS (Mismatch from TP)']
@@ -226,16 +226,13 @@ def download_file(filename):
 @app.route('/download-sample/<filename>')
 def download_sample(filename):
     try:
-        # Absolute path to static/samples
         sample_dir = os.path.join(app.root_path, 'static', 'samples')
-
         if os.path.exists(os.path.join(sample_dir, filename)):
             return send_from_directory(sample_dir, filename, as_attachment=True)
         else:
             return f"{filename} not found.", 404
     except Exception as e:
         return f"Error: {str(e)}", 500
-
 
 def new_func(__name__, app):
     if __name__ == "__main__":
